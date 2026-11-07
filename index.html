@@ -496,8 +496,8 @@ function loadModelsData() {
   }
   return [
     { name: "AUTO", active: true },
-    { name: "gemini-1.5-flash", active: true },
-    { name: "gemini-1.5-pro", active: true }
+    { name: "gemini-1.5-flash-latest", active: true },
+    { name: "gemini-1.5-pro-latest", active: true }
   ];
 }
 
@@ -937,30 +937,27 @@ function checkCommand(msg) {
   return { prompt: msg };
 }
 
-/* ============ API GEMINI (FIXED PAYLOAD & TIMEOUT) ============ */
+/* ============ API GEMINI (LOGIKA FIX TOTAL) ============ */
 function setDotStatus(color, title) { const d = document.getElementById('statusDot'); d.className = 'dot ' + color; d.title = title; }
-let isUserStop = false; 
+
+// Flag buat nandain kalo tombol stop dipencet
+window.isUserAborted = false;
 
 async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
   const key = getKey();
   if(!key){ toast('API key belum diset','err'); openModal(); throw new Error('no key'); }
   
-  // Format Payload yang BENER sesuai standar Google
   const contents = [{
     role: "user",
     parts: [{ text: prompt }]
   }];
 
   if (imageBase64 && mimeType) {
-    contents[0].parts.push({
-      inline_data: { mime_type: mimeType, data: imageBase64 }
-    });
+    contents[0].parts.push({ inline_data: { mime_type: mimeType, data: imageBase64 } });
   }
 
   const body = { contents: contents };
-  if (system) {
-    body.system_instruction = { parts: [{ text: system }] };
-  }
+  if (system) body.system_instruction = { parts: [{ text: system }] };
   
   if (USE_UNCENSORED) {
     body.safetySettings = [
@@ -974,38 +971,36 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
   let modelsToTry = [];
   
   if (SELECTED_MODEL === 'AUTO') {
+    // Default cuma 1 model buat AUTO biar ga ribet pindah-pindah
     if (imageBase64 || prompt.length > 500 || prompt.includes('#kode') || prompt.includes('#analisa')) {
-      modelsToTry = ["gemini-1.5-pro", "gemini-1.5-flash"]; 
+      modelsToTry = ["gemini-1.5-pro-latest"]; 
     } else {
-      modelsToTry = ["gemini-1.5-flash", "gemini-1.5-pro"];
+      modelsToTry = ["gemini-1.5-flash-latest"];
     }
   } else {
     modelsToTry = [SELECTED_MODEL];
   }
   
-  modelsToTry.push("gemini-1.5-flash"); 
+  // Fallback terakhir
+  if (!modelsToTry.includes("gemini-1.5-flash-latest")) modelsToTry.push("gemini-1.5-flash-latest");
 
   setDotStatus('yellow', 'Menghubungi server...');
-  abortController = new AbortController();
   const targetEl = document.getElementById(idElemen);
 
   for (let i = 0; i < modelsToTry.length; i++) {
     let m = modelsToTry[i];
     let timeoutId;
-    isUserStop = false; 
     
     try {
+      // timeout 20 detik
       timeoutId = setTimeout(() => {
-        if (abortController) abortController.abort();
-      }, 15000);
+        if (!window.isUserAborted && abortController) abortController.abort();
+      }, 20000);
 
       if (USE_STREAMING) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:streamGenerateContent?alt=sse&key=${key}`;
         const res = await fetch(url, {
-          method: 'POST', 
-          headers: {'Content-Type': 'application/json'}, 
-          body: JSON.stringify(body), 
-          signal: abortController.signal
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body), signal: abortController.signal
         });
         
         clearTimeout(timeoutId); 
@@ -1044,12 +1039,12 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
           const errMsg = (err.error && err.error.message) ? err.error.message : '';
           
           if (res.status === 404 || res.status === 429 || res.status === 503 || errMsg.includes("not found")) {
-            setDotStatus('red', 'Pindah ke model cadangan...');
-            toast('Model ' + m + ' sibuk/limit. Pindah cadangan...', 'warning');
+            setDotStatus('red', 'Model sibuk, pindah...');
+            // Cuma munculin toast kalo model yang dicoba lebih dari 1
+            if (modelsToTry.length > 1) toast('Model ' + m + ' gagal. Pindah cadangan...', 'warning');
             continue; 
           } else {
             setDotStatus('red', 'Error API');
-            // Tampilin error asli biar user tau (misal API Key salah)
             throw new Error(errMsg || 'Request gagal'); 
           }
         }
@@ -1057,10 +1052,7 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
       else {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`;
         const res = await fetch(url, {
-          method: 'POST', 
-          headers: {'Content-Type': 'application/json'}, 
-          body: JSON.stringify(body), 
-          signal: abortController.signal
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body), signal: abortController.signal
         });
         
         clearTimeout(timeoutId);
@@ -1083,8 +1075,8 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
           const errMsg = (err.error && err.error.message) ? err.error.message : '';
           
           if (res.status === 404 || res.status === 429 || res.status === 503 || errMsg.includes("not found")) {
-            setDotStatus('red', 'Pindah ke model cadangan...');
-            toast('Model ' + m + ' sibuk/limit. Pindah cadangan...', 'warning');
+            setDotStatus('red', 'Model sibuk, pindah...');
+            if (modelsToTry.length > 1) toast('Model ' + m + ' gagal. Pindah cadangan...', 'warning');
             continue; 
           } else {
             setDotStatus('red', 'Error API');
@@ -1095,16 +1087,16 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
     } catch (e) {
       clearTimeout(timeoutId);
       if (e.name === 'AbortError') { 
-          if (isUserStop) {
-              setDotStatus('green', 'Dibatalkan'); 
+          if (window.isUserAborted) {
+              setDotStatus('red', 'Dihentikan');
               throw new Error('Dibatalkan'); 
           } else {
-              toast('Server timeout 15s! Pindah model...', 'warning');
+              // Timeout
+              if (modelsToTry.length > 1) toast('Server timeout 20s! Pindah model...', 'warning');
               continue;
           }
       }
-      if (i === modelsToTry.length - 1) { setDotStatus('red', 'Semua server gagal'); throw e; }
-      toast('Error: ' + e.message + '. Mencoba fallback...', 'warning');
+      if (i === modelsToTry.length - 1) { setDotStatus('red', 'Gagal semua'); throw e; }
     }
   }
 }
@@ -1130,9 +1122,7 @@ async function chatSend(){
   }
 
   let userDisplayText = msg;
-  if(CHAT_MEDIA) {
-    userDisplayText += (userDisplayText ? '\n\n' : '') + `📎 *[Lampiran: ${CHAT_MEDIA.name}]*`;
-  }
+  if(CHAT_MEDIA) userDisplayText += (userDisplayText ? '\n\n' : '') + `📎 *[Lampiran: ${CHAT_MEDIA.name}]*`;
 
   const cmdResult = checkCommand(msg);
   if (cmdResult.isHelp && !CHAT_MEDIA) {
@@ -1156,8 +1146,15 @@ async function chatSend(){
   row.innerHTML = getAvatarHTML(false) + '<div class="msg-content"><div class="msg ai" id="' + id + '"><span class="spinner"></span> Berpikir...</div></div>';
   box.appendChild(row); box.scrollTop=box.scrollHeight;
 
-  const stopBtn = document.getElementById('stopBtn'); const sendBtn = document.getElementById('sendBtn');
-  stopBtn.classList.add('active'); sendBtn.style.opacity = '0.3'; sendBtn.style.pointerEvents = 'none';
+  const stopBtn = document.getElementById('stopBtn'); 
+  const sendBtn = document.getElementById('sendBtn');
+  
+  // SETUP TOMBOL STOP: Tampilkan dan aktifkan
+  stopBtn.classList.add('active'); 
+  sendBtn.style.opacity = '0.3'; 
+  sendBtn.style.pointerEvents = 'none';
+  window.isUserAborted = false; // Reset status abort
+  abortController = new AbortController();
 
   let sysPrompt = 'Kamu adalah ' + AI_NAME + ', asisten cerdas. Pengguna bernama ' + USER_NAME + '. Jawab dalam bahasa user. WAJIB pakai format markdown: [Judul Link](https://url.com).';
   if (USE_TOT) sysPrompt += ' JAWAB SANGAT SINGKAT, TO THE POINT, TANPA BASA-BASI.';
@@ -1172,12 +1169,8 @@ async function chatSend(){
   let finalPrompt = cmdResult.prompt;
   
   if (CHAT_MEDIA) {
-    if (CHAT_MEDIA.extractedText) {
-      finalPrompt += `\n\n[ISI DOKUMEN ${CHAT_MEDIA.name}]:\n${CHAT_MEDIA.extractedText}`;
-    } else {
-      imageBase64 = CHAT_MEDIA.base64;
-      mimeType = CHAT_MEDIA.mimeType;
-    }
+    if (CHAT_MEDIA.extractedText) finalPrompt += `\n\n[ISI DOKUMEN ${CHAT_MEDIA.name}]:\n${CHAT_MEDIA.extractedText}`;
+    else { imageBase64 = CHAT_MEDIA.base64; mimeType = CHAT_MEDIA.mimeType; }
     CHAT_MEDIA = null; 
   }
 
@@ -1186,8 +1179,12 @@ async function chatSend(){
   } catch(e){ 
     document.getElementById(id).textContent = (e.message === 'Dibatalkan') ? '⏹ Respon dihentikan.' : '❌ '+e.message; 
   } finally {
-    stopBtn.classList.remove('active'); sendBtn.style.opacity = '1'; sendBtn.style.pointerEvents = 'auto';
-    abortController = null; box.scrollTop=box.scrollHeight;
+    // TOMBOL STOP BARU ILANG KALO BENER-BENER SELESAI
+    stopBtn.classList.remove('active'); 
+    sendBtn.style.opacity = '1'; 
+    sendBtn.style.pointerEvents = 'auto';
+    abortController = null; 
+    box.scrollTop=box.scrollHeight;
   }
 }
 
@@ -1265,21 +1262,16 @@ document.addEventListener('DOMContentLoaded', function() {
         chatInput.addEventListener('focus', function() {
             panelChat.style.paddingBottom = '27vh'; 
             panelChat.style.transition = 'padding-bottom 0.2s ease';
-            setTimeout(function(){
-                if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
-            }, 200);
+            setTimeout(function(){ if(chatBox) chatBox.scrollTop = chatBox.scrollHeight; }, 200);
         });
-
-        chatInput.addEventListener('blur', function() {
-            panelChat.style.paddingBottom = '0';
-        });
+        chatInput.addEventListener('blur', function() { panelChat.style.paddingBottom = '0'; });
     }
 });
 
 
 /* ============ SISA FUNGSI ============ */
 function stopChat() { 
-    isUserStop = true;
+    window.isUserAborted = true; // Set flag kalo user mencet stop
     if(abortController) { 
         abortController.abort(); 
         toast('Dihentikan', 'warning'); 
