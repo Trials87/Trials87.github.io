@@ -1049,7 +1049,6 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
             continue; 
           } else {
             setDotStatus('red', 'Error API');
-            // Tampilin error asli biar user tau (misal API Key salah)
             throw new Error(errMsg || 'Request gagal'); 
           }
         }
