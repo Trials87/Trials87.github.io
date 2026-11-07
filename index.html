@@ -75,7 +75,6 @@ textarea{resize:vertical;min-height:100px}
 .msg.ai a { color: var(--accent2); text-decoration: underline; font-weight: 600; }
 .msg.ai code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace; }
 
-/* Panel chat: penting biar layout aman */
 .panel[data-key="chat"]{min-height:0;overflow:hidden;}
 
 /* CHAT BAR */
@@ -315,7 +314,7 @@ textarea{resize:vertical;min-height:100px}
         <h2>🛠️ Dev Console & Debugger</h2>
         <p class="desc">Debug aplikasi atau suntik kode JS.</p>
         <div class="card">
-          <div class="term-box" id="termOutput">Welcome to MY BINI GUA Terminal v1.0<br>Ketik 'help' untuk melihat daftar perintah.<br><br></div>
+          <div class="term-box" id="termOutput">Welcome to Terminal v1.0<br>Ketik 'help' untuk melihat daftar perintah.<br><br></div>
           <div style="display:flex; gap:8px;">
             <input type="text" class="term-input" id="termInput" placeholder="Ketik perintah..." onkeydown="if(event.key==='Enter')runDevCommand()">
             <button class="btn" onclick="runDevCommand()">Run</button>
@@ -459,8 +458,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 const HARDCODED_KEY = ""; 
 let ATTACHED_FILES = JSON.parse(localStorage.getItem('tk_files') || '[]');
 let SELECTED_MODEL = localStorage.getItem('tk_model') || "gemini-1.5-flash-latest"; 
-let USE_WEB_SEARCH = false;
-let USE_CONTEXT = true; 
+
+// Perbaikan: Sekarang default-nya MATI (false), dan baca dari localStorage
+let USE_CONTEXT = localStorage.getItem('tk_ctx') === 'true'; 
+let USE_WEB_SEARCH = localStorage.getItem('tk_web') === 'true';
 let USE_TOT = localStorage.getItem('tk_tot') === 'true';
 let USE_UNCENSORED = localStorage.getItem('tk_uncensored') === 'true'; 
 let USE_STREAMING = localStorage.getItem('tk_streaming') !== 'false'; 
@@ -528,6 +529,16 @@ function navTo(key) {
   const activeLink = nav.querySelector('a[data-key="' + key + '"]');
   if (activeLink) document.getElementById('pageTitle').textContent = activeLink.textContent.trim();
   document.getElementById('sidebar').classList.remove('open');
+}
+
+/* ============ TRANSLATE ERROR ============ */
+function translateError(errMsg, status) {
+    if (status === 400) return "Format permintaan salah atau API Key tidak valid.";
+    if (status === 403) return "Akses ditolak. Periksa izin API Key kamu.";
+    if (status === 404) return "Model tidak ditemukan. Silakan ganti model di Pengaturan AI.";
+    if (status === 429) return "Kuota API habis atau terlalu banyak permintaan. Tunggu sebentar lalu coba lagi.";
+    if (status === 500 || status === 503) return "Server Google sedang sibuk atau down. Coba lagi beberapa saat lagi.";
+    return errMsg;
 }
 
 /* ============ MIC / SEND & STT ============ */
@@ -677,7 +688,8 @@ async function testModelConnection(i) {
     } else {
       const err = await res.json().catch(function(){ return {}; });
       const msg = (err.error && err.error.message) ? err.error.message : ('HTTP ' + res.status);
-      toast('❌ ' + model.name + ': ' + String(msg).substring(0, 120), 'err');
+      const idMsg = translateError(msg, res.status);
+      toast('❌ ' + model.name + ': ' + String(idMsg).substring(0, 120), 'err');
     }
   } catch (e) {
     clearTimeout(timeout);
@@ -700,7 +712,6 @@ function deleteModelByIndex(i) {
   if (AVAILABLE_MODELS.length <= 1) return toast('Minimal 1 model harus ada', 'warning');
   const removed = AVAILABLE_MODELS.splice(i, 1)[0];
   saveModelsData();
-  // Kalau yang dihapus adalah primary, pindah ke model pertama
   if (SELECTED_MODEL === removed.name) {
     SELECTED_MODEL = AVAILABLE_MODELS[0].name;
     localStorage.setItem('tk_model', SELECTED_MODEL);
@@ -770,7 +781,6 @@ function initProfile() {
   document.getElementById('setAiName').value = AI_NAME;
   document.getElementById('setUserName').value = USER_NAME;
 
-  // Migrasi kalau dulu nyimpen AUTO
   if (SELECTED_MODEL === 'AUTO' || !AVAILABLE_MODELS.some(function(m){ return m.name === SELECTED_MODEL; })) {
     SELECTED_MODEL = AVAILABLE_MODELS[0] ? AVAILABLE_MODELS[0].name : 'gemini-1.5-flash-latest';
     localStorage.setItem('tk_model', SELECTED_MODEL);
@@ -880,6 +890,9 @@ function saveModeSettings() {
   USE_UNCENSORED = document.getElementById('swUncensored').checked;
   USE_STREAMING = document.getElementById('swStreaming').checked;
   
+  // Simpan ke localStorage
+  localStorage.setItem('tk_ctx', USE_CONTEXT);
+  localStorage.setItem('tk_web', USE_WEB_SEARCH);
   localStorage.setItem('tk_tot', USE_TOT);
   localStorage.setItem('tk_uncensored', USE_UNCENSORED);
   localStorage.setItem('tk_streaming', USE_STREAMING);
@@ -918,19 +931,16 @@ function appendChatMessage(text, isUser, id) {
 /* ============ CLEAR CHAT ============ */
 function clearChat() {
   const box = document.getElementById('chatBox');
-  // Kalau lagi ada request, abort dulu
   if (abortController) {
     window.isUserAborted = true;
     try { abortController.abort(); } catch(e) {}
     abortController = null;
   }
-  // Reset UI tombol stop & send
   const stopBtn = document.getElementById('stopBtn');
   const sendBtn = document.getElementById('sendBtn');
   if (stopBtn) stopBtn.classList.remove('active');
   if (sendBtn) { sendBtn.style.opacity = '1'; sendBtn.style.pointerEvents = 'auto'; }
 
-  // Clear DOM & render ulang sapaan
   box.innerHTML = '';
   renderInitialChat();
   toast('Chat dibersihkan', 'success');
@@ -972,7 +982,7 @@ function checkCommand(msg) {
   return { prompt: msg };
 }
 
-/* ============ API GEMINI (TANPA FALLBACK, TANPA AUTO) ============ */
+/* ============ API GEMINI ============ */
 function setDotStatus(color, title) { const d = document.getElementById('statusDot'); d.className = 'dot ' + color; d.title = title; }
 
 window.isUserAborted = false;
@@ -996,6 +1006,11 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
   const body = { contents: contents };
   if (system) body.system_instruction = { parts: [{ text: system }] };
   
+  // AKTIFKAN WEB SEARCH JIKA DIPILIH
+  if (USE_WEB_SEARCH) {
+    body.tools = [{ googleSearch: {} }];
+  }
+
   if (USE_UNCENSORED) {
     body.safetySettings = [
       { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -1012,7 +1027,7 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
   try {
     timeoutId = setTimeout(function() {
       if (!window.isUserAborted && abortController) abortController.abort();
-    }, 30000);
+    }, 45000); // Ditingkatkan jadi 45 detik buat web search
 
     if (USE_STREAMING) {
       const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':streamGenerateContent?alt=sse&key=' + key;
@@ -1023,9 +1038,9 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
 
       if (!res.ok) {
         const err = await res.json().catch(function(){ return {}; });
-        const errMsg = (err.error && err.error.message) ? err.error.message : ('HTTP ' + res.status);
+        const rawMsg = (err.error && err.error.message) ? err.error.message : ('HTTP ' + res.status);
         setDotStatus('red', 'Error API');
-        throw new Error(errMsg);
+        throw new Error(translateError(rawMsg, res.status));
       }
 
       setDotStatus('green', 'Server Normal');
@@ -1071,9 +1086,9 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
 
       if (!res.ok) {
         const err = await res.json().catch(function(){ return {}; });
-        const errMsg = (err.error && err.error.message) ? err.error.message : ('HTTP ' + res.status);
+        const rawMsg = (err.error && err.error.message) ? err.error.message : ('HTTP ' + res.status);
         setDotStatus('red', 'Error API');
-        throw new Error(errMsg);
+        throw new Error(translateError(rawMsg, res.status));
       }
 
       setDotStatus('green', 'Server Normal');
@@ -1094,7 +1109,7 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
     setDotStatus('red', 'Gagal');
     if (e.name === 'AbortError') {
       if (window.isUserAborted) throw new Error('Dibatalkan');
-      throw new Error('Server timeout (30 detik). Coba lagi.');
+      throw new Error('Server timeout. Coba lagi.');
     }
     throw e;
   }
@@ -1148,14 +1163,20 @@ async function chatSend(){
   const stopBtn = document.getElementById('stopBtn'); 
   const sendBtn = document.getElementById('sendBtn');
   
-  // Tampilkan tombol stop. Tetap tampil sampai ada output akhir di chat.
   stopBtn.classList.add('active'); 
   sendBtn.style.opacity = '0.3'; 
   sendBtn.style.pointerEvents = 'none';
   window.isUserAborted = false;
   abortController = new AbortController();
 
-  let sysPrompt = 'Kamu adalah ' + AI_NAME + ', asisten cerdas. Pengguna bernama ' + USER_NAME + '. Jawab dalam bahasa user. WAJIB pakai format markdown: [Judul Link](https://url.com).';
+  // SISTEM PROMPT BARU: BEBAS DARI LINK-LINK NGAWUR
+  let sysPrompt = 'Kamu adalah ' + AI_NAME + ', asisten cerdas. Pengguna bernama ' + USER_NAME + '. Jawab dalam bahasa user.';
+  sysPrompt += ' ATURAN PENTING: DILARANG KERAS memberikan link web, referensi ke Google, atau menyuruh user mencari sendiri KECUALI user secara eksplisit memintanya (misal: "berikan link", "cari di google"). Jika tidak diminta, jawab langsung menggunakan pengetahuanmu.';
+
+  if (USE_WEB_SEARCH) {
+    sysPrompt += ' Kamu memiliki akses ke Google Search. Tampilkan alur berpikirmu secara singkat dalam bahasa Indonesia di awal jawaban (contoh: "Berdasarkan pencarian web terbaru, saya menemukan...") sebelum memberikan jawaban akhir.';
+  }
+
   if (USE_TOT) sysPrompt += ' JAWAB SANGAT SINGKAT, TO THE POINT, TANPA BASA-BASI.';
 
   if (USE_CONTEXT && ATTACHED_FILES.length > 0) {
@@ -1179,12 +1200,10 @@ async function chatSend(){
     const el = document.getElementById(id);
     if (el) el.textContent = (e.message === 'Dibatalkan') ? '⏹ Respon dihentikan.' : ('❌ ' + (e.message || 'Gagal'));
   } finally {
-    // SAFETY: kalau masih ada spinner (nggak ada output), paksa isi error di chat
     const el = document.getElementById(id);
     if (el && el.querySelector('.spinner')) {
       el.textContent = '❌ Server tidak merespon. Coba lagi.';
     }
-    // Baru setelah output ada di chat, tombol stop boleh hilang
     stopBtn.classList.remove('active'); 
     sendBtn.style.opacity = '1'; 
     sendBtn.style.pointerEvents = 'auto';
@@ -1275,7 +1294,6 @@ document.addEventListener('DOMContentLoaded', function() {
         chatInput.addEventListener('focus', function() {
             panelChat.style.paddingBottom = '27vh'; 
             panelChat.style.transition = 'padding-bottom 0.2s ease';
-            // scroll 2x, biar pasti turun setelah layout settle
             setTimeout(function(){ if(chatBox) chatBox.scrollTop = chatBox.scrollHeight; }, 200);
             setTimeout(function(){ if(chatBox) chatBox.scrollTop = chatBox.scrollHeight; }, 400);
         });
@@ -1284,6 +1302,13 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(function(){ if(chatBox) chatBox.scrollTop = chatBox.scrollHeight; }, 100);
         });
     }
+
+    // Set checkbox state di modal sesuai state global
+    document.getElementById('swCtx').checked = USE_CONTEXT;
+    document.getElementById('swWeb').checked = USE_WEB_SEARCH;
+    document.getElementById('swTot').checked = USE_TOT;
+    document.getElementById('swUncensored').checked = USE_UNCENSORED;
+    document.getElementById('swStreaming').checked = USE_STREAMING;
 });
 
 /* ============ SISA FUNGSI ============ */
