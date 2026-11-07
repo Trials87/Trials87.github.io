@@ -12,7 +12,6 @@
 [data-theme="custom"]{--bg:#0f1117;--bg2:rgba(22,26,36,0.8);--panel:rgba(28,33,48,0.9);--panel2:rgba(35,42,61,0.9);--border:#2a3247;--text:#e6e9f0;--muted:#8b93a7}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 
-/* PERBAIKAN GAP: TIDAK ADA padding-top DI BODY */
 html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
 body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);position:fixed;width:100%;background-size:cover;background-position:center;background-attachment:fixed;transition:background 0.3s, color 0.3s;}
 .app{display:flex;height:100%;}
@@ -118,6 +117,12 @@ textarea{resize:vertical;min-height:100px}
 .term-input{background:#111; color:#0f0; font-family:'Courier New', monospace; border:1px solid #333; height:44px;}
 
 /* Model Manager */
+.auto-card { border: 2px solid var(--success) !important; background: rgba(34,197,94,0.1) !important; transition: 0.3s; margin-bottom: 20px; }
+.auto-card h3 { color: var(--success); font-size: 18px; margin-bottom: 5px; }
+.auto-card p { font-size: 13px; color: var(--text); margin-bottom: 15px; opacity: 0.8; }
+.auto-btn { width: 100%; background: var(--success); color: white; font-size: 16px; font-weight: bold; border: none; padding: 12px; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 10px rgba(34,197,94,0.4); }
+.auto-btn.active { background: #166534; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
+
 .model-item{display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:var(--bg2); border:1px solid var(--border); border-radius:9px; margin-bottom:8px; gap:10px;}
 .model-item.active{border-color:var(--success); background:rgba(34,197,94,0.05);}
 .model-item.primary{border-color:var(--accent); box-shadow:0 0 8px rgba(124,92,255,0.3);}
@@ -250,7 +255,7 @@ textarea{resize:vertical;min-height:100px}
         <div class="chat-top-bar">
           <div class="model-status-wrap">
             <div class="dot green" id="statusDot" title="Server Normal"></div>
-            <span id="modelDisplay" class="model-text">gemini-1.5-flash-latest</span>
+            <span id="modelDisplay" class="model-text">AUTO</span>
           </div>
         </div>
 
@@ -284,8 +289,16 @@ textarea{resize:vertical;min-height:100px}
       <section class="panel" data-key="models">
         <h2>🧠 Model Manager</h2>
         <p class="desc">Pilih model yang aktif sebagai cadangan. Klik ▶ untuk jadikan model utama.</p>
+        
+        <!-- TOMBOL AUTO BARU -->
+        <div class="card auto-card">
+          <h3>✨ Mode AUTO (Pintar)</h3>
+          <p>Sistem otomatis memilih model tercepat & paling cocok. Gagal? Pindah server sendiri.</p>
+          <button class="auto-btn" id="autoBtn" onclick="activateAutoMode()">Aktifkan Mode AUTO</button>
+        </div>
+
         <div class="card">
-          <label>Daftar Model</label>
+          <label>Daftar Model Manual</label>
           <div id="modelManagerList"></div>
           <hr style="border-color:var(--border); margin:15px 0;">
           <label>Tambah Model Baru</label>
@@ -624,9 +637,30 @@ function handleMediaUpload(e) {
 }
 
 /* ============ FITUR MODEL MANAGER ============ */
+function activateAutoMode() {
+  SELECTED_MODEL = 'AUTO';
+  localStorage.setItem('tk_model', SELECTED_MODEL);
+  document.getElementById('modelDisplay').innerText = 'AUTO (Pintar)';
+  renderModelManager();
+  toast('Mode AUTO diaktifkan!', 'success');
+}
+
 function renderModelManager() {
   const list = document.getElementById('modelManagerList');
+  const autoBtn = document.getElementById('autoBtn');
+  
+  // Update visual tombol AUTO
+  if (SELECTED_MODEL === 'AUTO') {
+    autoBtn.classList.add('active');
+    autoBtn.innerText = '✅ Mode AUTO Aktif (Klik untuk Matikan)';
+  } else {
+    autoBtn.classList.remove('active');
+    autoBtn.innerText = 'Aktifkan Mode AUTO';
+  }
+
   list.innerHTML = AVAILABLE_MODELS.map(function(m, i) {
+    if(m.name === 'AUTO') return ''; // Sembunyikan AUTO dari list manual
+    
     const isPrimary = m.name === SELECTED_MODEL;
     const activeClass = m.active ? 'active' : '';
     const primaryClass = isPrimary ? 'primary' : '';
@@ -671,6 +705,8 @@ function addNewModel() {
   const inp = document.getElementById('newModelInput');
   const name = inp.value.trim();
   if (!name) return toast('Nama model kosong', 'err');
+  if (name.toUpperCase() === 'AUTO') return toast('Gunakan tombol AUTO di atas', 'warning');
+  
   const exists = AVAILABLE_MODELS.some(function(m) { return m.name === name; });
   if (exists) return toast('Model sudah ada', 'warning');
   AVAILABLE_MODELS.push({ name: name, active: true });
@@ -705,7 +741,12 @@ function insertCmd(cmd) {
 function initProfile() {
   document.getElementById('setAiName').value = AI_NAME;
   document.getElementById('setUserName').value = USER_NAME;
-  document.getElementById('modelDisplay').innerText = SELECTED_MODEL; // Set text, not value
+  
+  if(SELECTED_MODEL === 'AUTO') {
+    document.getElementById('modelDisplay').innerText = 'AUTO (Pintar)';
+  } else {
+    document.getElementById('modelDisplay').innerText = SELECTED_MODEL;
+  }
   
   if(AI_AVATAR) { document.getElementById('aiAvatarPreview').src = AI_AVATAR; document.getElementById('aiAvatarPreview').style.display = 'block'; document.getElementById('aiAvatarText').style.display = 'none'; }
   if(USER_AVATAR) { document.getElementById('userAvatarPreview').src = USER_AVATAR; document.getElementById('userAvatarPreview').style.display = 'block'; document.getElementById('userAvatarText').style.display = 'none'; }
@@ -887,7 +928,7 @@ function checkCommand(msg) {
   return { prompt: msg };
 }
 
-/* ============ API GEMINI (STREAMING & SMART ROUTING) ============ */
+/* ============ API GEMINI (SMART ROUTING & STREAMING) ============ */
 function setDotStatus(color, title) { const d = document.getElementById('statusDot'); d.className = 'dot ' + color; d.title = title; }
 
 async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
@@ -911,18 +952,24 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
     ];
   }
 
-  // === SMART ROUTING (AUTO) ===
+  // === LOGIKA SMART ROUTING (AUTO) ===
   let modelsToTry = [];
+  
   if (SELECTED_MODEL === 'AUTO') {
+    // Kalau butuh penalaran berat (gambar, teks panjang, koding), pakai Pro dulu
     if (imageBase64 || prompt.length > 500 || prompt.includes('#kode') || prompt.includes('#analisa')) {
-      modelsToTry = ["gemini-1.5-pro-latest"]; 
+      modelsToTry = ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest"]; 
     } else {
-      modelsToTry = ["gemini-1.5-flash-latest"];
+      // Kalau chat santai, langsung pakai Flash (paling ngebut)
+      modelsToTry = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest"];
     }
   } else {
+    // Kalau milih manual
     modelsToTry = [SELECTED_MODEL];
   }
-  modelsToTry.push("gemini-1.5-flash-latest"); // Fallback
+  
+  // Fallback terakhir yang paling stabil
+  modelsToTry.push("gemini-1.5-flash-latest"); 
 
   setDotStatus('yellow', 'Menghubungi server...');
   abortController = new AbortController();
