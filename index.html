@@ -61,7 +61,7 @@ textarea{resize:vertical;min-height:100px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* CHAT UI */
-.chat-box{flex:1;overflow-y:auto;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;display:flex;flex-direction:column;gap:12px;margin-bottom:14px;}
+.chat-box{flex:1;overflow-y:auto;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;display:flex;flex-direction:column;gap:12px;margin-bottom:14px;min-height:0;-webkit-overflow-scrolling:touch;}
 .msg-row{display:flex;gap:8px;width:100%;align-items:flex-end;}
 .msg-row.user{flex-direction:row-reverse;}
 .msg-row.ai{flex-direction:row;}
@@ -75,14 +75,19 @@ textarea{resize:vertical;min-height:100px}
 .msg.ai a { color: var(--accent2); text-decoration: underline; font-weight: 600; }
 .msg.ai code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace; }
 
-/* UI CHAT BARU (SESUAI GAMBAR) */
+/* Panel chat: penting biar layout aman */
+.panel[data-key="chat"]{min-height:0;overflow:hidden;}
+
+/* CHAT BAR */
 .chat-top-bar{display:flex; justify-content:flex-start; align-items:center; margin-bottom:8px; flex-shrink:0;}
 .model-status-wrap{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--text); background:var(--panel2); padding:6px 12px; border-radius:20px; border:1px solid var(--border);}
 .model-text{pointer-events:none; user-select:none;}
 
-.chat-action-pills { display: flex; gap: 8px; margin-bottom: 10px; }
+.chat-action-pills { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;}
 .pill-btn { background: var(--panel); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: 0.2s; }
 .pill-btn:hover { background: var(--panel2); }
+.pill-btn.danger-pill { margin-left: auto; color: var(--danger); border-color: var(--danger); }
+.pill-btn.danger-pill:hover { background: rgba(239,68,68,0.1); }
 
 .chat-input-row{display:flex; gap:8px; align-items:center; flex-shrink:0; background:var(--panel2); padding:8px; border-radius:24px; border:1px solid var(--border);}
 .chat-input-row input[type="text"]{flex:1; height:36px; background:transparent; border:none; outline:none; color:var(--text); font-size:14px; padding:0 8px;}
@@ -118,12 +123,6 @@ textarea{resize:vertical;min-height:100px}
 .term-input{background:#111; color:#0f0; font-family:'Courier New', monospace; border:1px solid #333; height:44px;}
 
 /* Model Manager */
-.auto-card { border: 2px solid var(--success) !important; background: rgba(34,197,94,0.1) !important; transition: 0.3s; margin-bottom: 20px; }
-.auto-card h3 { color: var(--success); font-size: 18px; margin-bottom: 5px; }
-.auto-card p { font-size: 13px; color: var(--text); margin-bottom: 15px; opacity: 0.8; }
-.auto-btn { width: 100%; background: var(--success); color: white; font-size: 16px; font-weight: bold; border: none; padding: 12px; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 10px rgba(34,197,94,0.4); }
-.auto-btn.active { background: #166534; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
-
 .model-item{display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:var(--bg2); border:1px solid var(--border); border-radius:9px; margin-bottom:8px; gap:10px;}
 .model-item.active{border-color:var(--success); background:rgba(34,197,94,0.05);}
 .model-item.primary{border-color:var(--accent); box-shadow:0 0 8px rgba(124,92,255,0.3);}
@@ -131,13 +130,13 @@ textarea{resize:vertical;min-height:100px}
 .model-name{font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .badge-primary{font-size:9px; background:var(--accent); color:#fff; padding:2px 6px; border-radius:4px; margin-left:6px; vertical-align:middle;}
 .model-actions{display:flex; gap:6px; flex-shrink:0; align-items:center;}
-.btn-toggle{padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; border:none; cursor:pointer;}
-.btn-toggle.on { background: var(--success); color: #fff; }
-.btn-toggle.off { background: var(--panel2); color: var(--muted); }
 .btn-mini-icon{background:var(--panel2); border:1px solid var(--border); border-radius:6px; color:var(--muted); cursor:pointer; font-size:12px; padding:4px 8px; transition:.2s;}
 .btn-mini-icon:hover{background:var(--panel); color:var(--text);}
 .btn-mini-icon.primary-active{background:var(--accent); color:#fff; border-color:var(--accent);}
 .btn-mini-icon.danger{color:var(--danger); border-color:var(--danger);}
+.btn-mini-icon.connect{color:var(--accent2); border-color:var(--accent2);}
+.btn-mini-icon.connect:hover{background:var(--accent2); color:#000;}
+.btn-mini-icon.connect.testing{animation:pulse 1s infinite;}
 
 /* Command List */
 .cmd-row{display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--bg2); border:1px solid var(--border); border-radius:9px; margin-bottom:6px; cursor:pointer; transition:.2s;}
@@ -183,6 +182,8 @@ textarea{resize:vertical;min-height:100px}
 .modal p{color:var(--muted);font-size:13px;margin-bottom:16px;line-height:1.5}
 .modal input{margin-bottom:12px}
 .modal .actions{display:flex;gap:10px;justify-content:flex-end}
+.palette-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.swatch{height:70px;border-radius:9px;cursor:pointer;display:flex;align-items:flex-end;justify-content:center;font-size:10px;font-family:monospace;color:#000;padding-bottom:4px;font-weight:700;}
 </style>
 </head>
 <body data-theme="dark">
@@ -256,7 +257,7 @@ textarea{resize:vertical;min-height:100px}
         <div class="chat-top-bar">
           <div class="model-status-wrap">
             <div class="dot green" id="statusDot" title="Server Normal"></div>
-            <span id="modelDisplay" class="model-text">AUTO (Pintar)</span>
+            <span id="modelDisplay" class="model-text">-</span>
           </div>
         </div>
 
@@ -265,6 +266,7 @@ textarea{resize:vertical;min-height:100px}
         <div class="chat-action-pills">
           <button class="pill-btn" onclick="openModeModal()">🎛️ Mode</button>
           <button class="pill-btn" onclick="navTo('models')">⚙️ Pengaturan AI</button>
+          <button class="pill-btn danger-pill" onclick="clearChat()">🗑️ Bersihkan</button>
         </div>
 
         <div class="chat-input-row">
@@ -289,21 +291,15 @@ textarea{resize:vertical;min-height:100px}
 
       <section class="panel" data-key="models">
         <h2>🧠 Model Manager</h2>
-        <p class="desc">Pilih model yang aktif sebagai cadangan. Klik ▶ untuk jadikan model utama.</p>
+        <p class="desc">Pilih model yang aktif. Klik 🔌 untuk test koneksi, klik ▶ untuk jadikan model utama. Tidak ada fallback otomatis — kalau gagal, error akan muncul di chat.</p>
         
-        <div class="card auto-card">
-          <h3>✨ Mode AUTO (Pintar)</h3>
-          <p>Sistem otomatis memilih model tercepat & paling cocok. Gagal? Pindah server sendiri.</p>
-          <button class="auto-btn" id="autoBtn" onclick="activateAutoMode()">Aktifkan Mode AUTO</button>
-        </div>
-
         <div class="card">
-          <label>Daftar Model Manual</label>
+          <label>Daftar Model</label>
           <div id="modelManagerList"></div>
           <hr style="border-color:var(--border); margin:15px 0;">
           <label>Tambah Model Baru</label>
           <div style="display:flex; gap:8px; margin-top:8px;">
-            <input id="newModelInput" placeholder="cth: gemini-1.5-flash">
+            <input id="newModelInput" placeholder="cth: gemini-1.5-flash-latest">
             <button class="btn" onclick="addNewModel()">+ Tambah</button>
           </div>
         </div>
@@ -462,7 +458,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 /* ============ KONFIG & STATE ============ */
 const HARDCODED_KEY = ""; 
 let ATTACHED_FILES = JSON.parse(localStorage.getItem('tk_files') || '[]');
-let SELECTED_MODEL = localStorage.getItem('tk_model') || "AUTO"; 
+let SELECTED_MODEL = localStorage.getItem('tk_model') || "gemini-1.5-flash-latest"; 
 let USE_WEB_SEARCH = false;
 let USE_CONTEXT = true; 
 let USE_TOT = localStorage.getItem('tk_tot') === 'true';
@@ -487,46 +483,27 @@ function loadModelsData() {
     try {
       let parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        if (typeof parsed[0] === 'string') {
-          return parsed.map(function(n) { return { name: n, active: true }; });
-        }
-        return parsed;
+        // Migrasi: buang AUTO dari data lama
+        let filtered = parsed
+          .filter(function(m) { return m && m.name && m.name !== 'AUTO'; })
+          .map(function(m) {
+            if (typeof m === 'string') return { name: m };
+            return { name: m.name };
+          });
+        if (filtered.length > 0) return filtered;
       }
     } catch(e) {}
   }
   return [
-    { name: "AUTO", active: true },
-    { name: "gemini-1.5-flash-latest", active: true },
-    { name: "gemini-1.5-pro-latest", active: true }
+    { name: "gemini-1.5-flash-latest" },
+    { name: "gemini-1.5-pro-latest" },
+    { name: "gemini-2.0-flash" }
   ];
 }
 
 function saveModelsData() {
   localStorage.setItem('tk_available_models', JSON.stringify(AVAILABLE_MODELS));
 }
-
-function getActiveModelNames() {
-  return AVAILABLE_MODELS.filter(function(m) { return m.active; }).map(function(m) { return m.name; });
-}
-
-const COMMANDS = {
-  '#ringkas': 'Tolong ringkas teks berikut secara padat dan jelas: ',
-  '#terjemah': 'Tolong terjemahkan teks berikut ke Bahasa Indonesia: ',
-  '#perbaiki': 'Tolong perbaiki ejaan, tata bahasa, dan tanda baca: ',
-  '#jelaskan': 'Tolong jelaskan konsep atau topik berikut: ',
-  '#email': 'Tolong buatkan draft email profesional berdasarkan: ',
-  '#caption': 'Tolong buatkan caption media sosial untuk tema: ',
-  '#ide': 'Tolong berikan beberapa ide kreatif untuk topik: ',
-  '#kode': 'Tolong buatkan kode program untuk: ',
-  '#resep': 'Tolong berikan resep masakan untuk: ',
-  '#puisi': 'Tolong buatkan puisi bertema: ',
-  '#curhat': 'Kamu adalah teman curhat yang baik. Tanggapi: ',
-  '#saran': 'Tolong berikan saran konstruktif untuk: ',
-  '#karang': 'Tolong buatkan esai pendek tentang: ',
-  '#analisa': 'Tolong lakukan analisis mendalam tentang: ',
-  '#sinopsis': 'Tolong buatkan sinopsis cerita dari ide: ',
-  '#lirik': 'Tolong buatkan lirik lagu bertema: '
-};
 
 function getKey(){ return HARDCODED_KEY || localStorage.getItem('tk_gemini_key') || ''; }
 function setStatus(){
@@ -537,7 +514,7 @@ function setStatus(){
 function toast(m,t='info'){
   const w=document.getElementById('toastWrap');const e=document.createElement('div');
   e.className='toast '+t;e.textContent=m;w.appendChild(e);
-  setTimeout(function(){e.style.transition='.3s';e.style.opacity='0';e.style.transform='translateY(-20px)';setTimeout(function(){e.remove();},300);},2800);
+  setTimeout(function(){e.style.transition='.3s';e.style.opacity='0';e.style.transform='translateY(-20px)';setTimeout(function(){e.remove();},300);},3200);
 }
 
 function navTo(key) {
@@ -553,7 +530,7 @@ function navTo(key) {
   document.getElementById('sidebar').classList.remove('open');
 }
 
-/* ============ LOGIKA MIC / SEND & STT ============ */
+/* ============ MIC / SEND & STT ============ */
 function toggleMicSend() {
   const text = document.getElementById('chatInput').value;
   const mic = document.getElementById('micBtn');
@@ -642,53 +619,73 @@ function handleMediaUpload(e) {
   e.target.value = '';
 }
 
-/* ============ FITUR MODEL MANAGER ============ */
-function activateAutoMode() {
-  SELECTED_MODEL = 'AUTO';
-  localStorage.setItem('tk_model', SELECTED_MODEL);
-  document.getElementById('modelDisplay').innerText = 'AUTO (Pintar)';
-  renderModelManager();
-  toast('Mode AUTO diaktifkan!', 'success');
-}
-
+/* ============ MODEL MANAGER ============ */
 function renderModelManager() {
   const list = document.getElementById('modelManagerList');
-  const autoBtn = document.getElementById('autoBtn');
-  
-  if (SELECTED_MODEL === 'AUTO') {
-    autoBtn.classList.add('active');
-    autoBtn.innerText = '✅ Mode AUTO Aktif (Klik untuk Matikan)';
-  } else {
-    autoBtn.classList.remove('active');
-    autoBtn.innerText = 'Aktifkan Mode AUTO';
-  }
 
   list.innerHTML = AVAILABLE_MODELS.map(function(m, i) {
-    if(m.name === 'AUTO') return ''; 
-    
     const isPrimary = m.name === SELECTED_MODEL;
-    const activeClass = m.active ? 'active' : '';
     const primaryClass = isPrimary ? 'primary' : '';
     const badge = isPrimary ? '<span class="badge-primary">PRIMARY</span>' : '';
-    const toggleClass = m.active ? 'on' : 'off';
-    const toggleText = m.active ? 'ON' : 'OFF';
     const playClass = isPrimary ? 'primary-active' : '';
     
-    return '<div class="model-item ' + activeClass + ' ' + primaryClass + '">' +
-      '<div class="model-info"><div class="model-name">' + m.name + badge + '</div></div>' +
+    return '<div class="model-item ' + primaryClass + '">' +
+      '<div class="model-info"><div class="model-name">' + escapeHtml(m.name) + badge + '</div></div>' +
       '<div class="model-actions">' +
-        '<button class="btn-toggle ' + toggleClass + '" onclick="toggleModelActive(' + i + ')" title="Aktifkan untuk fallback">' + toggleText + '</button>' +
+        '<button class="btn-mini-icon connect" id="connect_' + i + '" onclick="testModelConnection(' + i + ')" title="Test koneksi">🔌</button>' +
         '<button class="btn-mini-icon ' + playClass + '" onclick="useAsModel(' + i + ')" title="Jadikan Primary">▶</button>' +
         '<button class="btn-mini-icon danger" onclick="deleteModelByIndex(' + i + ')" title="Hapus">✕</button>' +
       '</div>' +
     '</div>';
-  }).join('');
+  }).join('') || '<div style="color:var(--muted); font-size:13px; text-align:center; padding:10px;">Belum ada model. Tambahkan di bawah.</div>';
 }
 
-function toggleModelActive(i) {
-  AVAILABLE_MODELS[i].active = !AVAILABLE_MODELS[i].active;
-  saveModelsData();
-  renderModelManager();
+async function testModelConnection(i) {
+  const model = AVAILABLE_MODELS[i];
+  const key = getKey();
+  if (!model) return;
+  if (!key) return toast('Set API key dulu di menu ⚙️', 'err');
+
+  const btn = document.getElementById('connect_' + i);
+  if (btn) btn.classList.add('testing');
+
+  toast('🔌 Mengetes ' + model.name + '...', 'info');
+
+  const ctrl = new AbortController();
+  const timeout = setTimeout(function(){ ctrl.abort(); }, 15000);
+
+  try {
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model.name + ':generateContent?key=' + key;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ 
+        contents: [{ role: "user", parts: [{ text: "hi" }] }],
+        generationConfig: { maxOutputTokens: 5 }
+      }),
+      signal: ctrl.signal
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json().catch(function(){ return {}; });
+      if (data.candidates && data.candidates.length > 0) {
+        toast('✅ ' + model.name + ' terhubung!', 'success');
+      } else {
+        toast('⚠️ ' + model.name + ': Respon kosong / terblokir', 'warning');
+      }
+    } else {
+      const err = await res.json().catch(function(){ return {}; });
+      const msg = (err.error && err.error.message) ? err.error.message : ('HTTP ' + res.status);
+      toast('❌ ' + model.name + ': ' + String(msg).substring(0, 120), 'err');
+    }
+  } catch (e) {
+    clearTimeout(timeout);
+    const reason = e.name === 'AbortError' ? 'Timeout 15s' : e.message;
+    toast('❌ ' + model.name + ': ' + reason, 'err');
+  } finally {
+    if (btn) btn.classList.remove('testing');
+  }
 }
 
 function useAsModel(i) {
@@ -700,8 +697,15 @@ function useAsModel(i) {
 }
 
 function deleteModelByIndex(i) {
-  AVAILABLE_MODELS.splice(i, 1);
+  if (AVAILABLE_MODELS.length <= 1) return toast('Minimal 1 model harus ada', 'warning');
+  const removed = AVAILABLE_MODELS.splice(i, 1)[0];
   saveModelsData();
+  // Kalau yang dihapus adalah primary, pindah ke model pertama
+  if (SELECTED_MODEL === removed.name) {
+    SELECTED_MODEL = AVAILABLE_MODELS[0].name;
+    localStorage.setItem('tk_model', SELECTED_MODEL);
+    document.getElementById('modelDisplay').innerText = SELECTED_MODEL;
+  }
   renderModelManager();
   toast('Model dihapus', 'success');
 }
@@ -710,18 +714,37 @@ function addNewModel() {
   const inp = document.getElementById('newModelInput');
   const name = inp.value.trim();
   if (!name) return toast('Nama model kosong', 'err');
-  if (name.toUpperCase() === 'AUTO') return toast('Gunakan tombol AUTO di atas', 'warning');
+  if (name.toUpperCase() === 'AUTO') return toast('Mode AUTO sudah dihapus', 'warning');
   
   const exists = AVAILABLE_MODELS.some(function(m) { return m.name === name; });
   if (exists) return toast('Model sudah ada', 'warning');
-  AVAILABLE_MODELS.push({ name: name, active: true });
+  AVAILABLE_MODELS.push({ name: name });
   saveModelsData();
   renderModelManager();
   inp.value = '';
   toast('Model ditambahkan ✅', 'success');
 }
 
-/* ============ FITUR COMMANDS ============ */
+/* ============ COMMANDS ============ */
+const COMMANDS = {
+  '#ringkas': 'Tolong ringkas teks berikut secara padat dan jelas: ',
+  '#terjemah': 'Tolong terjemahkan teks berikut ke Bahasa Indonesia: ',
+  '#perbaiki': 'Tolong perbaiki ejaan, tata bahasa, dan tanda baca: ',
+  '#jelaskan': 'Tolong jelaskan konsep atau topik berikut: ',
+  '#email': 'Tolong buatkan draft email profesional berdasarkan: ',
+  '#caption': 'Tolong buatkan caption media sosial untuk tema: ',
+  '#ide': 'Tolong berikan beberapa ide kreatif untuk topik: ',
+  '#kode': 'Tolong buatkan kode program untuk: ',
+  '#resep': 'Tolong berikan resep masakan untuk: ',
+  '#puisi': 'Tolong buatkan puisi bertema: ',
+  '#curhat': 'Kamu adalah teman curhat yang baik. Tanggapi: ',
+  '#saran': 'Tolong berikan saran konstruktif untuk: ',
+  '#karang': 'Tolong buatkan esai pendek tentang: ',
+  '#analisa': 'Tolong lakukan analisis mendalam tentang: ',
+  '#sinopsis': 'Tolong buatkan sinopsis cerita dari ide: ',
+  '#lirik': 'Tolong buatkan lirik lagu bertema: '
+};
+
 function renderCommands() {
   const list = document.getElementById('cmdList');
   list.innerHTML = Object.keys(COMMANDS).map(function(key) {
@@ -742,16 +765,18 @@ function insertCmd(cmd) {
   toggleMicSend();
 }
 
-/* ============ FITUR KUSTOMISASI & TEMA ============ */
+/* ============ PROFIL & TEMA ============ */
 function initProfile() {
   document.getElementById('setAiName').value = AI_NAME;
   document.getElementById('setUserName').value = USER_NAME;
-  
-  if(SELECTED_MODEL === 'AUTO') {
-    document.getElementById('modelDisplay').innerText = 'AUTO (Pintar)';
-  } else {
-    document.getElementById('modelDisplay').innerText = SELECTED_MODEL;
+
+  // Migrasi kalau dulu nyimpen AUTO
+  if (SELECTED_MODEL === 'AUTO' || !AVAILABLE_MODELS.some(function(m){ return m.name === SELECTED_MODEL; })) {
+    SELECTED_MODEL = AVAILABLE_MODELS[0] ? AVAILABLE_MODELS[0].name : 'gemini-1.5-flash-latest';
+    localStorage.setItem('tk_model', SELECTED_MODEL);
   }
+
+  document.getElementById('modelDisplay').innerText = SELECTED_MODEL;
   
   if(AI_AVATAR) { document.getElementById('aiAvatarPreview').src = AI_AVATAR; document.getElementById('aiAvatarPreview').style.display = 'block'; document.getElementById('aiAvatarText').style.display = 'none'; }
   if(USER_AVATAR) { document.getElementById('userAvatarPreview').src = USER_AVATAR; document.getElementById('userAvatarPreview').style.display = 'block'; document.getElementById('userAvatarText').style.display = 'none'; }
@@ -839,7 +864,7 @@ function saveProfile() {
   document.getElementById('chatBox').innerHTML = ''; renderInitialChat();
 }
 
-/* ============ FITUR MODE MODAL ============ */
+/* ============ MODE MODAL ============ */
 function openModeModal() {
   document.getElementById('swCtx').checked = USE_CONTEXT;
   document.getElementById('swWeb').checked = USE_WEB_SEARCH;
@@ -862,16 +887,6 @@ function saveModeSettings() {
   document.getElementById('modeModalBg').classList.remove('show');
   toast('Pengaturan Mode disimpan!', 'success');
 }
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    document.getElementById('swCtx').checked = USE_CONTEXT;
-    document.getElementById('swWeb').checked = USE_WEB_SEARCH;
-    document.getElementById('swTot').checked = USE_TOT;
-    document.getElementById('swUncensored').checked = USE_UNCENSORED;
-    document.getElementById('swStreaming').checked = USE_STREAMING;
-  }, 100);
-});
-
 
 /* ============ RENDER CHAT ============ */
 function getAvatarHTML(isUser) {
@@ -900,6 +915,27 @@ function appendChatMessage(text, isUser, id) {
   box.scrollTop = box.scrollHeight;
 }
 
+/* ============ CLEAR CHAT ============ */
+function clearChat() {
+  const box = document.getElementById('chatBox');
+  // Kalau lagi ada request, abort dulu
+  if (abortController) {
+    window.isUserAborted = true;
+    try { abortController.abort(); } catch(e) {}
+    abortController = null;
+  }
+  // Reset UI tombol stop & send
+  const stopBtn = document.getElementById('stopBtn');
+  const sendBtn = document.getElementById('sendBtn');
+  if (stopBtn) stopBtn.classList.remove('active');
+  if (sendBtn) { sendBtn.style.opacity = '1'; sendBtn.style.pointerEvents = 'auto'; }
+
+  // Clear DOM & render ulang sapaan
+  box.innerHTML = '';
+  renderInitialChat();
+  toast('Chat dibersihkan', 'success');
+}
+
 /* ============ COMMAND PARSER ============ */
 function checkCommand(msg) {
   const parts = msg.trim().split(' ');
@@ -918,9 +954,8 @@ function checkCommand(msg) {
   if (cmd === '#list' || cmd === '#listmodel') {
     let modelListText = "Daftar Model:\n\n";
     AVAILABLE_MODELS.forEach(function(m) {
-      const status = m.active ? '🟢 AKTIF' : '⚪ NONAKTIF';
       const primary = m.name === SELECTED_MODEL ? ' ⭐ PRIMARY' : '';
-      modelListText += '• ' + m.name + ' — ' + status + primary + '\n';
+      modelListText += '• ' + m.name + primary + '\n';
     });
     return { isHelp: true, text: modelListText };
   }
@@ -937,16 +972,18 @@ function checkCommand(msg) {
   return { prompt: msg };
 }
 
-/* ============ API GEMINI (LOGIKA FIX TOTAL) ============ */
+/* ============ API GEMINI (TANPA FALLBACK, TANPA AUTO) ============ */
 function setDotStatus(color, title) { const d = document.getElementById('statusDot'); d.className = 'dot ' + color; d.title = title; }
 
-// Flag buat nandain kalo tombol stop dipencet
 window.isUserAborted = false;
 
 async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
   const key = getKey();
-  if(!key){ toast('API key belum diset','err'); openModal(); throw new Error('no key'); }
+  if(!key){ toast('API key belum diset','err'); openModal(); throw new Error('API key belum diset. Klik ⚙️ API Key.'); }
   
+  const model = SELECTED_MODEL;
+  if (!model) throw new Error('Belum ada model yang dipilih. Buka Model Manager.');
+
   const contents = [{
     role: "user",
     parts: [{ text: prompt }]
@@ -968,136 +1005,98 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
     ];
   }
 
-  let modelsToTry = [];
-  
-  if (SELECTED_MODEL === 'AUTO') {
-    // Default cuma 1 model buat AUTO biar ga ribet pindah-pindah
-    if (imageBase64 || prompt.length > 500 || prompt.includes('#kode') || prompt.includes('#analisa')) {
-      modelsToTry = ["gemini-1.5-pro-latest"]; 
-    } else {
-      modelsToTry = ["gemini-1.5-flash-latest"];
-    }
-  } else {
-    modelsToTry = [SELECTED_MODEL];
-  }
-  
-  // Fallback terakhir
-  if (!modelsToTry.includes("gemini-1.5-flash-latest")) modelsToTry.push("gemini-1.5-flash-latest");
-
-  setDotStatus('yellow', 'Menghubungi server...');
+  setDotStatus('yellow', 'Menghubungi ' + model + '...');
   const targetEl = document.getElementById(idElemen);
 
-  for (let i = 0; i < modelsToTry.length; i++) {
-    let m = modelsToTry[i];
-    let timeoutId;
-    
-    try {
-      // timeout 20 detik
-      timeoutId = setTimeout(() => {
-        if (!window.isUserAborted && abortController) abortController.abort();
-      }, 20000);
+  let timeoutId;
+  try {
+    timeoutId = setTimeout(function() {
+      if (!window.isUserAborted && abortController) abortController.abort();
+    }, 30000);
 
-      if (USE_STREAMING) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:streamGenerateContent?alt=sse&key=${key}`;
-        const res = await fetch(url, {
-          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body), signal: abortController.signal
-        });
-        
-        clearTimeout(timeoutId); 
-
-        if (res.ok) {
-          setDotStatus('green', 'Server Normal');
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder("utf-8");
-          let aiText = "";
-          
-          if(targetEl) targetEl.innerHTML = '<span class="spinner"></span> Berpikir...';
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
-            
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const data = JSON.parse(line.substring(6));
-                  if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
-                    const text = data.candidates[0].content.parts[0].text;
-                    aiText += text;
-                    if(targetEl) targetEl.innerHTML = formatResponse(aiText) + '<span class="spinner"></span>';
-                  }
-                } catch (e) { }
-              }
-            }
-          }
-          if(targetEl) targetEl.innerHTML = formatResponse(aiText);
-          return aiText;
-        } else {
-          const err = await res.json().catch(function(){ return {}; });
-          const errMsg = (err.error && err.error.message) ? err.error.message : '';
-          
-          if (res.status === 404 || res.status === 429 || res.status === 503 || errMsg.includes("not found")) {
-            setDotStatus('red', 'Model sibuk, pindah...');
-            // Cuma munculin toast kalo model yang dicoba lebih dari 1
-            if (modelsToTry.length > 1) toast('Model ' + m + ' gagal. Pindah cadangan...', 'warning');
-            continue; 
-          } else {
-            setDotStatus('red', 'Error API');
-            throw new Error(errMsg || 'Request gagal'); 
-          }
-        }
-      } 
-      else {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`;
-        const res = await fetch(url, {
-          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body), signal: abortController.signal
-        });
-        
-        clearTimeout(timeoutId);
-
-        if (res.ok) {
-          setDotStatus('green', 'Server Normal');
-          if(targetEl) targetEl.innerHTML = '<span class="spinner"></span> Memproses...';
-          const data = await res.json();
-          
-          if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
-            const fullText = data.candidates[0].content.parts[0].text;
-            if(targetEl) targetEl.innerHTML = formatResponse(fullText);
-            return fullText;
-          } else {
-            if(targetEl) targetEl.innerHTML = "(Kosong / Diblokir Sensor)";
-            return "";
-          }
-        } else {
-          const err = await res.json().catch(function(){ return {}; });
-          const errMsg = (err.error && err.error.message) ? err.error.message : '';
-          
-          if (res.status === 404 || res.status === 429 || res.status === 503 || errMsg.includes("not found")) {
-            setDotStatus('red', 'Model sibuk, pindah...');
-            if (modelsToTry.length > 1) toast('Model ' + m + ' gagal. Pindah cadangan...', 'warning');
-            continue; 
-          } else {
-            setDotStatus('red', 'Error API');
-            throw new Error(errMsg || 'Request gagal');
-          }
-        }
-      }
-    } catch (e) {
+    if (USE_STREAMING) {
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':streamGenerateContent?alt=sse&key=' + key;
+      const res = await fetch(url, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body), signal: abortController.signal
+      });
       clearTimeout(timeoutId);
-      if (e.name === 'AbortError') { 
-          if (window.isUserAborted) {
-              setDotStatus('red', 'Dihentikan');
-              throw new Error('Dibatalkan'); 
-          } else {
-              // Timeout
-              if (modelsToTry.length > 1) toast('Server timeout 20s! Pindah model...', 'warning');
-              continue;
-          }
+
+      if (!res.ok) {
+        const err = await res.json().catch(function(){ return {}; });
+        const errMsg = (err.error && err.error.message) ? err.error.message : ('HTTP ' + res.status);
+        setDotStatus('red', 'Error API');
+        throw new Error(errMsg);
       }
-      if (i === modelsToTry.length - 1) { setDotStatus('red', 'Gagal semua'); throw e; }
+
+      setDotStatus('green', 'Server Normal');
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let aiText = "";
+      
+      if(targetEl) targetEl.innerHTML = '<span class="spinner"></span> Berpikir...';
+
+      while (true) {
+        const r = await reader.read();
+        if (r.done) break;
+        const chunk = decoder.decode(r.value, { stream: true });
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6));
+              if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
+                const text = data.candidates[0].content.parts[0].text;
+                if (text) {
+                  aiText += text;
+                  if(targetEl) targetEl.innerHTML = formatResponse(aiText) + '<span class="spinner"></span>';
+                }
+              }
+            } catch (e) { }
+          }
+        }
+      }
+      if(targetEl) {
+        if (aiText.trim()) targetEl.innerHTML = formatResponse(aiText);
+        else targetEl.innerHTML = '❌ Server tidak mengembalikan teks.';
+      }
+      return aiText;
+    } 
+    else {
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + key;
+      const res = await fetch(url, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body), signal: abortController.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const err = await res.json().catch(function(){ return {}; });
+        const errMsg = (err.error && err.error.message) ? err.error.message : ('HTTP ' + res.status);
+        setDotStatus('red', 'Error API');
+        throw new Error(errMsg);
+      }
+
+      setDotStatus('green', 'Server Normal');
+      if(targetEl) targetEl.innerHTML = '<span class="spinner"></span> Memproses...';
+      const data = await res.json();
+      
+      if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
+        const fullText = data.candidates[0].content.parts[0].text || '';
+        if(targetEl) targetEl.innerHTML = fullText.trim() ? formatResponse(fullText) : '❌ Server tidak mengembalikan teks.';
+        return fullText;
+      } else {
+        if(targetEl) targetEl.innerHTML = '❌ Respon kosong / diblokir sensor.';
+        return '';
+      }
     }
+  } catch (e) {
+    clearTimeout(timeoutId);
+    setDotStatus('red', 'Gagal');
+    if (e.name === 'AbortError') {
+      if (window.isUserAborted) throw new Error('Dibatalkan');
+      throw new Error('Server timeout (30 detik). Coba lagi.');
+    }
+    throw e;
   }
 }
 
@@ -1122,7 +1121,7 @@ async function chatSend(){
   }
 
   let userDisplayText = msg;
-  if(CHAT_MEDIA) userDisplayText += (userDisplayText ? '\n\n' : '') + `📎 *[Lampiran: ${CHAT_MEDIA.name}]*`;
+  if(CHAT_MEDIA) userDisplayText += (userDisplayText ? '\n\n' : '') + ('📎 *[Lampiran: ' + CHAT_MEDIA.name + ']*');
 
   const cmdResult = checkCommand(msg);
   if (cmdResult.isHelp && !CHAT_MEDIA) {
@@ -1149,11 +1148,11 @@ async function chatSend(){
   const stopBtn = document.getElementById('stopBtn'); 
   const sendBtn = document.getElementById('sendBtn');
   
-  // SETUP TOMBOL STOP: Tampilkan dan aktifkan
+  // Tampilkan tombol stop. Tetap tampil sampai ada output akhir di chat.
   stopBtn.classList.add('active'); 
   sendBtn.style.opacity = '0.3'; 
   sendBtn.style.pointerEvents = 'none';
-  window.isUserAborted = false; // Reset status abort
+  window.isUserAborted = false;
   abortController = new AbortController();
 
   let sysPrompt = 'Kamu adalah ' + AI_NAME + ', asisten cerdas. Pengguna bernama ' + USER_NAME + '. Jawab dalam bahasa user. WAJIB pakai format markdown: [Judul Link](https://url.com).';
@@ -1169,23 +1168,37 @@ async function chatSend(){
   let finalPrompt = cmdResult.prompt;
   
   if (CHAT_MEDIA) {
-    if (CHAT_MEDIA.extractedText) finalPrompt += `\n\n[ISI DOKUMEN ${CHAT_MEDIA.name}]:\n${CHAT_MEDIA.extractedText}`;
+    if (CHAT_MEDIA.extractedText) finalPrompt += '\n\n[ISI DOKUMEN ' + CHAT_MEDIA.name + ']:\n' + CHAT_MEDIA.extractedText;
     else { imageBase64 = CHAT_MEDIA.base64; mimeType = CHAT_MEDIA.mimeType; }
     CHAT_MEDIA = null; 
   }
 
-  try{ 
+  try { 
     await callGemini(finalPrompt, sysPrompt, imageBase64, mimeType, id); 
-  } catch(e){ 
-    document.getElementById(id).textContent = (e.message === 'Dibatalkan') ? '⏹ Respon dihentikan.' : '❌ '+e.message; 
+  } catch(e) { 
+    const el = document.getElementById(id);
+    if (el) el.textContent = (e.message === 'Dibatalkan') ? '⏹ Respon dihentikan.' : ('❌ ' + (e.message || 'Gagal'));
   } finally {
-    // TOMBOL STOP BARU ILANG KALO BENER-BENER SELESAI
+    // SAFETY: kalau masih ada spinner (nggak ada output), paksa isi error di chat
+    const el = document.getElementById(id);
+    if (el && el.querySelector('.spinner')) {
+      el.textContent = '❌ Server tidak merespon. Coba lagi.';
+    }
+    // Baru setelah output ada di chat, tombol stop boleh hilang
     stopBtn.classList.remove('active'); 
     sendBtn.style.opacity = '1'; 
     sendBtn.style.pointerEvents = 'auto';
     abortController = null; 
-    box.scrollTop=box.scrollHeight;
+    box.scrollTop = box.scrollHeight;
   }
+}
+
+function stopChat() { 
+  window.isUserAborted = true;
+  if(abortController) { 
+    try { abortController.abort(); } catch(e) {}
+    toast('Dihentikan', 'warning'); 
+  } 
 }
 
 /* ============ DEV CONSOLE ============ */
@@ -1228,7 +1241,7 @@ function runDevCommand() {
     const newModel = cmd.substring(9).trim();
     const exists = AVAILABLE_MODELS.some(function(x) { return x.name === newModel; });
     if (!exists) {
-      AVAILABLE_MODELS.push({ name: newModel, active: true });
+      AVAILABLE_MODELS.push({ name: newModel });
       saveModelsData();
       renderModelManager();
       printTerm("✅ Model ditambahkan: " + newModel);
@@ -1252,7 +1265,7 @@ function runDevCommand() {
   } catch(e) { printTerm("❌ Error: " + e.message); }
 }
 
-/* ============ PERBAIKAN KEYBOARD (REPOSISI 27VH) ============ */
+/* ============ KEYBOARD HANDLING (AUTO SCROLL ROBUST) ============ */
 document.addEventListener('DOMContentLoaded', function() {
     var chatInput = document.getElementById('chatInput');
     var panelChat = document.querySelector('.panel[data-key="chat"]');
@@ -1262,22 +1275,18 @@ document.addEventListener('DOMContentLoaded', function() {
         chatInput.addEventListener('focus', function() {
             panelChat.style.paddingBottom = '27vh'; 
             panelChat.style.transition = 'padding-bottom 0.2s ease';
+            // scroll 2x, biar pasti turun setelah layout settle
             setTimeout(function(){ if(chatBox) chatBox.scrollTop = chatBox.scrollHeight; }, 200);
+            setTimeout(function(){ if(chatBox) chatBox.scrollTop = chatBox.scrollHeight; }, 400);
         });
-        chatInput.addEventListener('blur', function() { panelChat.style.paddingBottom = '0'; });
+        chatInput.addEventListener('blur', function() { 
+            panelChat.style.paddingBottom = '0'; 
+            setTimeout(function(){ if(chatBox) chatBox.scrollTop = chatBox.scrollHeight; }, 100);
+        });
     }
 });
 
-
 /* ============ SISA FUNGSI ============ */
-function stopChat() { 
-    window.isUserAborted = true; // Set flag kalo user mencet stop
-    if(abortController) { 
-        abortController.abort(); 
-        toast('Dihentikan', 'warning'); 
-    } 
-}
-
 function saveFilesToStorage() { localStorage.setItem('tk_files', JSON.stringify(ATTACHED_FILES)); renderFiles(); }
 function renderFiles() {
   const list = document.getElementById('fileList');
