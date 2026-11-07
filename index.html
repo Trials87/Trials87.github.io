@@ -940,6 +940,7 @@ function checkCommand(msg) {
 
 /* ============ API GEMINI (STREAMING & NON-STREAMING) ============ */
 function setDotStatus(color, title) { const d = document.getElementById('statusDot'); d.className = 'dot ' + color; d.title = title; }
+let isUserStop = false; // Flag buat bedain stop dari user atau timeout
 
 async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
   const key = getKey();
@@ -983,7 +984,15 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
 
   for (let i = 0; i < modelsToTry.length; i++) {
     let m = modelsToTry[i];
+    let timeoutId;
+    isUserStop = false; // Reset flag setiap ganti model
+    
     try {
+      // Set timeout 15 detik per request biar gak nge-hang
+      timeoutId = setTimeout(() => {
+        if (abortController) abortController.abort();
+      }, 15000);
+
       // === JIKA STREAMING AKTIF ===
       if (USE_STREAMING) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:streamGenerateContent?alt=sse&key=${key}`;
@@ -991,13 +1000,15 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
           method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body), signal: abortController.signal
         });
         
+        clearTimeout(timeoutId); // Matiin timeout kalau request sukses
+
         if (res.ok) {
           setDotStatus('green', 'Server Normal');
           const reader = res.body.getReader();
           const decoder = new TextDecoder("utf-8");
           let aiText = "";
           
-          if(targetEl) targetEl.innerHTML = '<span class="spinner"></span> Mengetik...';
+          if(targetEl) targetEl.innerHTML = '<span class="spinner"></span> Berpikir...';
 
           while (true) {
             const { done, value } = await reader.read();
@@ -1025,6 +1036,7 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
           const errMsg = (err.error && err.error.message) ? err.error.message : '';
           if (res.status === 404 || res.status === 429 || res.status === 503 || errMsg.includes("not found")) {
             setDotStatus('red', 'Pindah ke model cadangan...');
+            toast('Model ' + m + ' sibuk. Pindah cadangan...', 'warning');
             continue; 
           } else {
             setDotStatus('red', 'Error API');
@@ -1039,6 +1051,8 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
           method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body), signal: abortController.signal
         });
         
+        clearTimeout(timeoutId);
+
         if (res.ok) {
           setDotStatus('green', 'Server Normal');
           if(targetEl) targetEl.innerHTML = '<span class="spinner"></span> Memproses...';
@@ -1057,6 +1071,7 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
           const errMsg = (err.error && err.error.message) ? err.error.message : '';
           if (res.status === 404 || res.status === 429 || res.status === 503 || errMsg.includes("not found")) {
             setDotStatus('red', 'Pindah ke model cadangan...');
+            toast('Model ' + m + ' sibuk. Pindah cadangan...', 'warning');
             continue; 
           } else {
             setDotStatus('red', 'Error API');
@@ -1065,8 +1080,19 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
         }
       }
     } catch (e) {
-      if (e.name === 'AbortError') { setDotStatus('green', 'Dibatalkan'); throw new Error('Dibatalkan'); }
+      clearTimeout(timeoutId);
+      if (e.name === 'AbortError') { 
+          if (isUserStop) {
+              setDotStatus('green', 'Dibatalkan'); 
+              throw new Error('Dibatalkan'); 
+          } else {
+              // Kalau bukan user yang stop, berarti timeout
+              toast('Server timeout! Pindah model...', 'warning');
+              continue;
+          }
+      }
       if (i === modelsToTry.length - 1) { setDotStatus('red', 'Semua server gagal'); throw e; }
+      toast('Error: ' + e.message + '. Mencoba fallback...', 'warning');
     }
   }
 }
@@ -1241,7 +1267,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 /* ============ SISA FUNGSI ============ */
-function stopChat() { if(abortController) { abortController.abort(); toast('Dihentikan', 'warning'); } }
+function stopChat() { 
+    isUserStop = true;
+    if(abortController) { 
+        abortController.abort(); 
+        toast('Dihentikan', 'warning'); 
+    } 
+}
 
 function saveFilesToStorage() { localStorage.setItem('tk_files', JSON.stringify(ATTACHED_FILES)); renderFiles(); }
 function renderFiles() {
