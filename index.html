@@ -445,6 +445,11 @@ textarea{resize:vertical;min-height:100px}
         <span>🔞 Mode 18+ (Bypass)</span>
         <input type="checkbox" id="swUncensored" style="width:20px;height:20px;accent-color:var(--accent);margin:0;">
       </label>
+      <hr style="border-color:var(--border); margin:5px 0;">
+      <label style="display:flex;justify-content:space-between;align-items:center;text-transform:none;color:var(--text);cursor:pointer;font-size:14px;margin:0;">
+        <span>📝 Teks Bertahap (Streaming)</span>
+        <input type="checkbox" id="swStreaming" style="width:20px;height:20px;accent-color:var(--accent);margin:0;">
+      </label>
     </div>
     <div class="actions"><button class="btn" onclick="saveModeSettings()">Simpan Pengaturan</button></div>
   </div>
@@ -462,6 +467,7 @@ let USE_WEB_SEARCH = false;
 let USE_CONTEXT = true; 
 let USE_TOT = localStorage.getItem('tk_tot') === 'true';
 let USE_UNCENSORED = localStorage.getItem('tk_uncensored') === 'true'; 
+let USE_STREAMING = localStorage.getItem('tk_streaming') !== 'false'; // Default: TRUE
 let abortController = null;
 let CURRENT_THEME = localStorage.getItem('tk_theme') || 'dark';
 let CHAT_MEDIA = null; 
@@ -840,6 +846,7 @@ function openModeModal() {
   document.getElementById('swWeb').checked = USE_WEB_SEARCH;
   document.getElementById('swTot').checked = USE_TOT;
   document.getElementById('swUncensored').checked = USE_UNCENSORED;
+  document.getElementById('swStreaming').checked = USE_STREAMING;
   document.getElementById('modeModalBg').classList.add('show');
 }
 function saveModeSettings() {
@@ -847,9 +854,11 @@ function saveModeSettings() {
   USE_WEB_SEARCH = document.getElementById('swWeb').checked;
   USE_TOT = document.getElementById('swTot').checked;
   USE_UNCENSORED = document.getElementById('swUncensored').checked;
+  USE_STREAMING = document.getElementById('swStreaming').checked;
   
   localStorage.setItem('tk_tot', USE_TOT);
   localStorage.setItem('tk_uncensored', USE_UNCENSORED);
+  localStorage.setItem('tk_streaming', USE_STREAMING);
   
   document.getElementById('modeModalBg').classList.remove('show');
   toast('Pengaturan Mode disimpan!', 'success');
@@ -860,6 +869,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('swWeb').checked = USE_WEB_SEARCH;
     document.getElementById('swTot').checked = USE_TOT;
     document.getElementById('swUncensored').checked = USE_UNCENSORED;
+    document.getElementById('swStreaming').checked = USE_STREAMING;
   }, 100);
 });
 
@@ -928,7 +938,7 @@ function checkCommand(msg) {
   return { prompt: msg };
 }
 
-/* ============ API GEMINI (SMART ROUTING & STREAMING) ============ */
+/* ============ API GEMINI (STREAMING & NON-STREAMING) ============ */
 function setDotStatus(color, title) { const d = document.getElementById('statusDot'); d.className = 'dot ' + color; d.title = title; }
 
 async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
@@ -969,60 +979,89 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
 
   setDotStatus('yellow', 'Menghubungi server...');
   abortController = new AbortController();
+  const targetEl = document.getElementById(idElemen);
 
   for (let i = 0; i < modelsToTry.length; i++) {
     let m = modelsToTry[i];
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:streamGenerateContent?alt=sse&key=${key}`;
-      
-      const res = await fetch(url, {
-        method: 'POST', 
-        headers: {'Content-Type': 'application/json'}, 
-        body: JSON.stringify(body), 
-        signal: abortController.signal
-      });
-      
-      if (res.ok) {
-        setDotStatus('green', 'Server Normal');
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let aiText = "";
+      // === JIKA STREAMING AKTIF ===
+      if (USE_STREAMING) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:streamGenerateContent?alt=sse&key=${key}`;
+        const res = await fetch(url, {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body), signal: abortController.signal
+        });
         
-        const targetEl = document.getElementById(idElemen);
-        if(targetEl) targetEl.innerHTML = '<span class="spinner"></span> Mengetik...';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
+        if (res.ok) {
+          setDotStatus('green', 'Server Normal');
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder("utf-8");
+          let aiText = "";
           
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.substring(6));
-                if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
-                  const text = data.candidates[0].content.parts[0].text;
-                  aiText += text;
-                  if(targetEl) targetEl.innerHTML = formatResponse(aiText) + '<span class="spinner"></span>';
-                }
-              } catch (e) { }
+          if(targetEl) targetEl.innerHTML = '<span class="spinner"></span> Mengetik...';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.substring(6));
+                  if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+                    const text = data.candidates[0].content.parts[0].text;
+                    aiText += text;
+                    if(targetEl) targetEl.innerHTML = formatResponse(aiText) + '<span class="spinner"></span>';
+                  }
+                } catch (e) { }
+              }
             }
           }
-        }
-        if(targetEl) targetEl.innerHTML = formatResponse(aiText);
-        return aiText;
-        
-      } else {
-        const err = await res.json().catch(function(){ return {}; });
-        const errMsg = (err.error && err.error.message) ? err.error.message : '';
-        
-        if (res.status === 404 || res.status === 429 || res.status === 503 || errMsg.includes("not found")) {
-          setDotStatus('red', 'Pindah ke model cadangan...');
-          continue; 
+          if(targetEl) targetEl.innerHTML = formatResponse(aiText);
+          return aiText;
         } else {
-          setDotStatus('red', 'Error API');
-          throw new Error(errMsg || 'Request gagal');
+          const err = await res.json().catch(function(){ return {}; });
+          const errMsg = (err.error && err.error.message) ? err.error.message : '';
+          if (res.status === 404 || res.status === 429 || res.status === 503 || errMsg.includes("not found")) {
+            setDotStatus('red', 'Pindah ke model cadangan...');
+            continue; 
+          } else {
+            setDotStatus('red', 'Error API');
+            throw new Error(errMsg || 'Request gagal');
+          }
+        }
+      } 
+      // === JIKA STREAMING MATI (NON-STREAMING) ===
+      else {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`;
+        const res = await fetch(url, {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body), signal: abortController.signal
+        });
+        
+        if (res.ok) {
+          setDotStatus('green', 'Server Normal');
+          if(targetEl) targetEl.innerHTML = '<span class="spinner"></span> Memproses...';
+          const data = await res.json();
+          
+          if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+            const fullText = data.candidates[0].content.parts[0].text;
+            if(targetEl) targetEl.innerHTML = formatResponse(fullText);
+            return fullText;
+          } else {
+            if(targetEl) targetEl.innerHTML = "(Kosong / Diblokir Sensor)";
+            return "";
+          }
+        } else {
+          const err = await res.json().catch(function(){ return {}; });
+          const errMsg = (err.error && err.error.message) ? err.error.message : '';
+          if (res.status === 404 || res.status === 429 || res.status === 503 || errMsg.includes("not found")) {
+            setDotStatus('red', 'Pindah ke model cadangan...');
+            continue; 
+          } else {
+            setDotStatus('red', 'Error API');
+            throw new Error(errMsg || 'Request gagal');
+          }
         }
       }
     } catch (e) {
@@ -1075,7 +1114,9 @@ async function chatSend(){
   const box = document.getElementById('chatBox');
   const row = document.createElement('div');
   row.className = 'msg-row ai'; row.id = 'row_'+id;
-  row.innerHTML = getAvatarHTML(false) + '<div class="msg-content"><div class="msg ai" id="' + id + '"></div></div>';
+  
+  // Tampilkan indikator "Berpikir..." awal
+  row.innerHTML = getAvatarHTML(false) + '<div class="msg-content"><div class="msg ai" id="' + id + '"><span class="spinner"></span> Berpikir...</div></div>';
   box.appendChild(row); box.scrollTop=box.scrollHeight;
 
   const stopBtn = document.getElementById('stopBtn'); const sendBtn = document.getElementById('sendBtn');
