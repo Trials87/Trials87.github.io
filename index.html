@@ -74,6 +74,7 @@ textarea{resize:vertical;min-height:100px}
 .msg.ai{background:var(--panel);border:1px solid var(--border);border-bottom-left-radius:2px;}
 .msg.ai a { color: var(--accent2); text-decoration: underline; font-weight: 600; }
 .msg.ai code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+.msg.ai .thinking { display: block; font-size: 12px; color: var(--warning); margin-bottom: 6px; font-style: italic; background: rgba(234,179,8,0.1); padding: 6px; border-radius: 6px;}
 
 .panel[data-key="chat"]{min-height:0;overflow:hidden;}
 
@@ -459,7 +460,6 @@ const HARDCODED_KEY = "";
 let ATTACHED_FILES = JSON.parse(localStorage.getItem('tk_files') || '[]');
 let SELECTED_MODEL = localStorage.getItem('tk_model') || "gemini-1.5-flash-latest"; 
 
-// Perbaikan: Sekarang default-nya MATI (false), dan baca dari localStorage
 let USE_CONTEXT = localStorage.getItem('tk_ctx') === 'true'; 
 let USE_WEB_SEARCH = localStorage.getItem('tk_web') === 'true';
 let USE_TOT = localStorage.getItem('tk_tot') === 'true';
@@ -469,7 +469,6 @@ let abortController = null;
 let CURRENT_THEME = localStorage.getItem('tk_theme') || 'dark';
 let CHAT_MEDIA = null; 
 
-// State Profil & Background
 let AI_NAME = localStorage.getItem('tk_ai_name') || 'ToolKit AI';
 let AI_AVATAR = localStorage.getItem('tk_ai_avatar') || '';
 let USER_NAME = localStorage.getItem('tk_user_name') || 'Pengguna';
@@ -484,7 +483,6 @@ function loadModelsData() {
     try {
       let parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Migrasi: buang AUTO dari data lama
         let filtered = parsed
           .filter(function(m) { return m && m.name && m.name !== 'AUTO'; })
           .map(function(m) {
@@ -531,7 +529,7 @@ function navTo(key) {
   document.getElementById('sidebar').classList.remove('open');
 }
 
-/* ============ TRANSLATE ERROR ============ */
+/* ============ ERROR TRANSLATE ============ */
 function translateError(errMsg, status) {
     if (status === 400) return "Format permintaan salah atau API Key tidak valid.";
     if (status === 403) return "Akses ditolak. Periksa izin API Key kamu.";
@@ -890,7 +888,6 @@ function saveModeSettings() {
   USE_UNCENSORED = document.getElementById('swUncensored').checked;
   USE_STREAMING = document.getElementById('swStreaming').checked;
   
-  // Simpan ke localStorage
   localStorage.setItem('tk_ctx', USE_CONTEXT);
   localStorage.setItem('tk_web', USE_WEB_SEARCH);
   localStorage.setItem('tk_tot', USE_TOT);
@@ -1006,7 +1003,6 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
   const body = { contents: contents };
   if (system) body.system_instruction = { parts: [{ text: system }] };
   
-  // AKTIFKAN WEB SEARCH JIKA DIPILIH
   if (USE_WEB_SEARCH) {
     body.tools = [{ googleSearch: {} }];
   }
@@ -1027,7 +1023,7 @@ async function callGemini(prompt, system, imageBase64, mimeType, idElemen){
   try {
     timeoutId = setTimeout(function() {
       if (!window.isUserAborted && abortController) abortController.abort();
-    }, 45000); // Ditingkatkan jadi 45 detik buat web search
+    }, 45000); 
 
     if (USE_STREAMING) {
       const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':streamGenerateContent?alt=sse&key=' + key;
@@ -1120,6 +1116,10 @@ function formatResponse(text) {
   let safe = text.replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
   safe = safe.replace(/```([\s\S]*?)```/g, '<code>$1</code>');
   safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+  
+  safe = safe.replace(/(\[🔍 Mencari di Google\.\.\.\])/g, '<span class="thinking">$1</span>');
+  safe = safe.replace(/(\[💡 Berpikir\.\.\.\])/g, '<span class="thinking">$1</span>');
+
   safe = safe.replace(/\n/g, '<br>');
   return safe;
 }
@@ -1169,19 +1169,28 @@ async function chatSend(){
   window.isUserAborted = false;
   abortController = new AbortController();
 
-  // SISTEM PROMPT BARU: BEBAS DARI LINK-LINK NGAWUR
+  // SISTEM PROMPT LOGIKA BERBEDA - SANGAT UNIVERSAL
   let sysPrompt = 'Kamu adalah ' + AI_NAME + ', asisten cerdas. Pengguna bernama ' + USER_NAME + '. Jawab dalam bahasa user.';
-  sysPrompt += ' ATURAN PENTING: DILARANG KERAS memberikan link web, referensi ke Google, atau menyuruh user mencari sendiri KECUALI user secara eksplisit memintanya (misal: "berikan link", "cari di google"). Jika tidak diminta, jawab langsung menggunakan pengetahuanmu.';
-
+  sysPrompt += '\n\nATURAN UTAMA:';
+  sysPrompt += '\n1. DILARANG KERAS memberikan link web atau menyuruh user mencari di Google KECUALI user secara eksplisit memintanya.';
+  sysPrompt += '\n2. Berpikirlah secara mandiri dan kritis. Gunakan logikamu sendiri.';
+  
   if (USE_WEB_SEARCH) {
-    sysPrompt += ' Kamu memiliki akses ke Google Search. Tampilkan alur berpikirmu secara singkat dalam bahasa Indonesia di awal jawaban (contoh: "Berdasarkan pencarian web terbaru, saya menemukan...") sebelum memberikan jawaban akhir.';
+    sysPrompt += '\n3. Kamu memiliki akses ke Google Search. Tampilkan alur berpikirmu dengan format: "[🔍 Mencari di Google...]" lalu "[💡 Berpikir...]" di awal jawaban, baru berikan hasilnya dalam bahasa Indonesia.';
   }
 
-  if (USE_TOT) sysPrompt += ' JAWAB SANGAT SINGKAT, TO THE POINT, TANPA BASA-BASI.';
+  if (USE_TOT) sysPrompt += '\n4. JAWAB SANGAT SINGKAT, TO THE POINT, TANPA BASA-BASI.';
 
+  // INI BAGIAN PENTINGNYA: ATURAN UNIVERSAL UNTUK SEMUA JENIS DOKUMEN
   if (USE_CONTEXT && ATTACHED_FILES.length > 0) {
     let fileContents = ATTACHED_FILES.map(function(f) { return '--- FILE: ' + f.name + ' ---\n' + f.content; }).join("\n\n");
-    sysPrompt += '\n\nDATA KONTEKS:\n"""\n' + fileContents + '\n"""\n\nGunakan data di atas.';
+    sysPrompt += '\n\n[DOKUMEN REFERENSI DARI USER]:\n"""\n' + fileContents + '\n"""\n';
+    sysPrompt += '\n\nPANDUAN MENGOLAH DOKUMEN (SANGAT PENTING):';
+    sysPrompt += '\n1. FUNGSI DOKUMEN: Anggap dokumen di atas sebagai BUKU PANDUAN TAMBAHAN, bukan satu-satunya sumber kebenaran.';
+    sysPrompt += '\n2. JIKA PERTANYAAN RELEVAN DENGAN DOKUMEN: Jawablah berdasarkan dokumen, tapi gunakan bahasamu sendiri (jangan copy-paste).';
+    sysPrompt += '\n3. JIKA PERTANYAAN DI LUAR TOPIK DOKUMEN: Abaikan dokumen tersebut dan jawablah menggunakan pengetahuanmu secara bebas dan cerdas.';
+    sysPrompt += '\n4. JIKA PERTANYAAN MEMBUTUHKAN ANALOGI/SINTESIS: Jika user meminta penerapan konsep dari dokumen ke bidang lain (misal: bisnis, game, kehidupan), KAMU WAJIB MENGANALOGIKAN konsep dokumen tersebut ke bidang yang ditanyakan user. Jangan kaku!';
+    sysPrompt += '\n5. JANGAN KAKU: Jangan pernah menolak pertanyaan user hanya karena "tidak ada di dokumen". Berpikirlah secara mandiri dan logis.';
   }
   
   let imageBase64 = null;
@@ -1284,7 +1293,7 @@ function runDevCommand() {
   } catch(e) { printTerm("❌ Error: " + e.message); }
 }
 
-/* ============ KEYBOARD HANDLING (AUTO SCROLL ROBUST) ============ */
+/* ============ KEYBOARD HANDLING ============ */
 document.addEventListener('DOMContentLoaded', function() {
     var chatInput = document.getElementById('chatInput');
     var panelChat = document.querySelector('.panel[data-key="chat"]');
@@ -1303,7 +1312,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Set checkbox state di modal sesuai state global
     document.getElementById('swCtx').checked = USE_CONTEXT;
     document.getElementById('swWeb').checked = USE_WEB_SEARCH;
     document.getElementById('swTot').checked = USE_TOT;
